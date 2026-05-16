@@ -1,7 +1,7 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useServerFn } from "@tanstack/react-start";
-import { Shield, Loader2, UserCog, Database, Activity, AlertTriangle } from "lucide-react";
+import { Shield, Loader2, UserCog, Database as DatabaseIcon, Activity, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { PageHeader } from "@/components/page-header";
@@ -93,7 +93,7 @@ function AdminPage() {
           <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground mt-1">Documents</p>
         </Card>
         <Card className="p-5">
-          <Database className="h-4 w-4 text-muted-foreground" />
+          <DatabaseIcon className="h-4 w-4 text-muted-foreground" />
           <p className="mt-4 font-serif text-4xl">{debug?.totalChunks ?? 0}</p>
           <p className="text-xs uppercase tracking-[0.18em] text-muted-foreground mt-1">Indexed chunks</p>
         </Card>
