@@ -92,9 +92,64 @@ export type Database = {
           },
         ]
       }
+      document_chunks: {
+        Row: {
+          chunk_index: number
+          content: string
+          created_at: string
+          document_id: string | null
+          embedding: string | null
+          id: string
+          page_number: number | null
+          regulation_id: string | null
+          section: string | null
+          tokens: number | null
+        }
+        Insert: {
+          chunk_index?: number
+          content: string
+          created_at?: string
+          document_id?: string | null
+          embedding?: string | null
+          id?: string
+          page_number?: number | null
+          regulation_id?: string | null
+          section?: string | null
+          tokens?: number | null
+        }
+        Update: {
+          chunk_index?: number
+          content?: string
+          created_at?: string
+          document_id?: string | null
+          embedding?: string | null
+          id?: string
+          page_number?: number | null
+          regulation_id?: string | null
+          section?: string | null
+          tokens?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_chunks_document_id_fkey"
+            columns: ["document_id"]
+            isOneToOne: false
+            referencedRelation: "documents"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "document_chunks_regulation_id_fkey"
+            columns: ["regulation_id"]
+            isOneToOne: false
+            referencedRelation: "regulations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       documents: {
         Row: {
           ai_summary: string | null
+          content_text: string | null
           created_at: string
           description: string | null
           file_size: number | null
@@ -103,6 +158,7 @@ export type Database = {
           language: string | null
           mime_type: string | null
           owner_id: string
+          source_type: Database["public"]["Enums"]["source_type"] | null
           status: Database["public"]["Enums"]["document_status"]
           storage_path: string
           tags: string[] | null
@@ -111,6 +167,7 @@ export type Database = {
         }
         Insert: {
           ai_summary?: string | null
+          content_text?: string | null
           created_at?: string
           description?: string | null
           file_size?: number | null
@@ -119,6 +176,7 @@ export type Database = {
           language?: string | null
           mime_type?: string | null
           owner_id: string
+          source_type?: Database["public"]["Enums"]["source_type"] | null
           status?: Database["public"]["Enums"]["document_status"]
           storage_path: string
           tags?: string[] | null
@@ -127,6 +185,7 @@ export type Database = {
         }
         Update: {
           ai_summary?: string | null
+          content_text?: string | null
           created_at?: string
           description?: string | null
           file_size?: number | null
@@ -135,6 +194,7 @@ export type Database = {
           language?: string | null
           mime_type?: string | null
           owner_id?: string
+          source_type?: Database["public"]["Enums"]["source_type"] | null
           status?: Database["public"]["Enums"]["document_status"]
           storage_path?: string
           tags?: string[] | null
@@ -203,6 +263,45 @@ export type Database = {
         }
         Relationships: []
       }
+      rag_logs: {
+        Row: {
+          ai_latency_ms: number | null
+          confidence: number | null
+          created_at: string
+          id: string
+          query: string
+          retrieval_count: number | null
+          retrieval_latency_ms: number | null
+          status: string | null
+          top_similarity: number | null
+          user_id: string | null
+        }
+        Insert: {
+          ai_latency_ms?: number | null
+          confidence?: number | null
+          created_at?: string
+          id?: string
+          query: string
+          retrieval_count?: number | null
+          retrieval_latency_ms?: number | null
+          status?: string | null
+          top_similarity?: number | null
+          user_id?: string | null
+        }
+        Update: {
+          ai_latency_ms?: number | null
+          confidence?: number | null
+          created_at?: string
+          id?: string
+          query?: string
+          retrieval_count?: number | null
+          retrieval_latency_ms?: number | null
+          status?: string | null
+          top_similarity?: number | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       regulations: {
         Row: {
           authority: string | null
@@ -214,6 +313,7 @@ export type Database = {
           jurisdiction: string
           language: string | null
           reference_code: string | null
+          source_type: Database["public"]["Enums"]["source_type"] | null
           source_url: string | null
           summary: string | null
           tags: string[] | null
@@ -230,6 +330,7 @@ export type Database = {
           jurisdiction: string
           language?: string | null
           reference_code?: string | null
+          source_type?: Database["public"]["Enums"]["source_type"] | null
           source_url?: string | null
           summary?: string | null
           tags?: string[] | null
@@ -246,6 +347,7 @@ export type Database = {
           jurisdiction?: string
           language?: string | null
           reference_code?: string | null
+          source_type?: Database["public"]["Enums"]["source_type"] | null
           source_url?: string | null
           summary?: string | null
           tags?: string[] | null
@@ -345,10 +447,39 @@ export type Database = {
         }
         Returns: boolean
       }
+      match_chunks: {
+        Args: {
+          filter_jurisdiction?: string
+          filter_source_type?: Database["public"]["Enums"]["source_type"]
+          match_count?: number
+          query_embedding: string
+          requesting_user?: string
+        }
+        Returns: {
+          content: string
+          doc_title: string
+          document_id: string
+          id: string
+          jurisdiction: string
+          page_number: number
+          reg_title: string
+          regulation_id: string
+          section: string
+          similarity: number
+          source_type: Database["public"]["Enums"]["source_type"]
+        }[]
+      }
     }
     Enums: {
       app_role: "admin" | "analyst" | "sme_user" | "viewer"
       document_status: "processing" | "ready" | "failed" | "archived"
+      source_type:
+        | "government_gazette"
+        | "ministry_regulation"
+        | "regulator_guidance"
+        | "trade_agreement"
+        | "policy_document"
+        | "unofficial_source"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -478,6 +609,14 @@ export const Constants = {
     Enums: {
       app_role: ["admin", "analyst", "sme_user", "viewer"],
       document_status: ["processing", "ready", "failed", "archived"],
+      source_type: [
+        "government_gazette",
+        "ministry_regulation",
+        "regulator_guidance",
+        "trade_agreement",
+        "policy_document",
+        "unofficial_source",
+      ],
     },
   },
 } as const
