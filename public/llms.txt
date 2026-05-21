@@ -1,0 +1,9 @@
+# Veridex
+
+> Evidence-first regulatory intelligence platform for trade compliance teams.
+
+Veridex helps trade compliance and legal teams find, organize, and understand official legal and regulatory documents with AI-assisted citation verification. The platform unifies global trade regulations and internal documents into one searchable workspace — with verifiable citations, jurisdictional context, and role-based access controls designed for legal-grade accuracy.
+
+## Pages
+
+- [Home](/): Product overview, platform capabilities, and access request.
