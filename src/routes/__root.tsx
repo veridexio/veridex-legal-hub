@@ -59,6 +59,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { property: "og:title", content: "Veridex — AI-powered trade & regulatory intelligence" },
       { property: "og:description", content: "Find, organize and understand official trade and regulatory documents with AI-assisted search, citations and provenance." },
       { property: "og:type", content: "website" },
+      { property: "og:url", content: "https://veridex-insight-hub.lovable.app/" },
       { name: "twitter:title", content: "Veridex — AI-powered trade & regulatory intelligence" },
       { name: "twitter:description", content: "Find, organize and understand official trade and regulatory documents with AI-assisted search, citations and provenance." },
       { property: "og:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/47305925-40b5-44a6-8420-2f3fe041938f/id-preview-241fd314--1f76b226-775e-4358-9c43-0b370b327ea4.lovable.app-1778930795430.png" },
@@ -70,6 +71,19 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "" },
       { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=Work+Sans:wght@400;500;600;700&display=swap" },
       { rel: "stylesheet", href: appCss },
+    ],
+    scripts: [
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "Organization",
+          name: "Veridex",
+          description: "AI-powered trade and regulatory intelligence platform.",
+          url: "https://veridex-insight-hub.lovable.app",
+          logo: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/47305925-40b5-44a6-8420-2f3fe041938f/id-preview-241fd314--1f76b226-775e-4358-9c43-0b370b327ea4.lovable.app-1778930795430.png",
+        }),
+      },
     ],
   }),
   shellComponent: RootShell,
