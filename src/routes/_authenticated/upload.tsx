@@ -23,6 +23,7 @@ import {
 import { EmptyState } from "@/components/empty-state";
 import { useAuth } from "@/hooks/use-auth";
 import { processDocument } from "@/lib/ingestion.functions";
+import { extractPdfText } from "@/lib/pdf-extract.functions";
 import { SOURCE_TYPE_LABELS, type SourceType } from "@/lib/source-authority";
 import { AuthorityBadge } from "@/components/authority-badge";
 
@@ -42,13 +43,50 @@ function UploadPage() {
   const { user } = useAuth();
   const qc = useQueryClient();
   const runProcess = useServerFn(processDocument);
+  const runExtract = useServerFn(extractPdfText);
   const [file, setFile] = useState<File | null>(null);
+  const [extractInfo, setExtractInfo] = useState<{ pages: number; chars: number } | null>(null);
+  const [extracting, setExtracting] = useState(false);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [jurisdiction, setJurisdiction] = useState("");
   const [contentText, setContentText] = useState("");
   const [sourceType, setSourceType] = useState<SourceType>("unofficial_source");
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const MAX_PDF_BYTES = 10 * 1024 * 1024;
+
+  async function handleFileChange(f: File | null) {
+    setFile(f);
+    setExtractInfo(null);
+    if (!f) return;
+    if (f.type !== "application/pdf") return;
+    if (f.size > MAX_PDF_BYTES) {
+      toast.error("PDF exceeds 10 MB limit");
+      return;
+    }
+    setExtracting(true);
+    try {
+      const buf = await f.arrayBuffer();
+      // chunked base64 to avoid stack overflow on large files
+      let bin = "";
+      const bytes = new Uint8Array(buf);
+      const CHUNK = 0x8000;
+      for (let i = 0; i < bytes.length; i += CHUNK) {
+        bin += String.fromCharCode(...bytes.subarray(i, i + CHUNK));
+      }
+      const fileBase64 = btoa(bin);
+      const res = await runExtract({ data: { fileBase64, filename: f.name } });
+      setContentText(res.text);
+      setExtractInfo({ pages: res.pageCount, chars: res.text.length });
+      if (!title) setTitle(f.name.replace(/\.pdf$/i, ""));
+      toast.success(`Extracted ${res.pageCount} pages · ${res.text.length.toLocaleString()} chars`);
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setExtracting(false);
+    }
+  }
 
   const { data: docs, isLoading } = useQuery({
     queryKey: ["my-documents"],
@@ -112,6 +150,7 @@ function UploadPage() {
       setSourceType("unofficial_source");
       qc.invalidateQueries({ queryKey: ["my-documents"] });
       qc.invalidateQueries({ queryKey: ["dashboard-stats"] });
+      setExtractInfo(null);
     },
     onError: (e: Error) => { if (e.message !== "Validation failed") toast.error(e.message); },
   });
@@ -201,10 +240,27 @@ function UploadPage() {
             </div>
             <div>
               <Label htmlFor="file">File</Label>
-              <Input id="file" type="file" onChange={(e) => setFile(e.target.files?.[0] ?? null)} required />
-              {file && <p className="text-xs text-muted-foreground mt-1">{(file.size / 1024).toFixed(1)} KB</p>}
+              <Input
+                id="file"
+                type="file"
+                accept="application/pdf,*/*"
+                onChange={(e) => handleFileChange(e.target.files?.[0] ?? null)}
+                required
+              />
+              {file && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  {(file.size / 1024).toFixed(1)} KB
+                  {extracting && " · extracting text…"}
+                  {extractInfo && ` · ${extractInfo.pages} pages extracted`}
+                </p>
+              )}
+              {file?.type === "application/pdf" && !extracting && !extractInfo && (
+                <p className="text-[10px] text-muted-foreground mt-1">
+                  PDF detected — text extraction will run automatically.
+                </p>
+              )}
             </div>
-            <Button type="submit" disabled={upload.isPending} className="w-full">
+            <Button type="submit" disabled={upload.isPending || extracting} className="w-full">
               {upload.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <UploadIcon className="h-4 w-4 mr-2" />}
               Upload {contentText.trim() && "& index"}
             </Button>

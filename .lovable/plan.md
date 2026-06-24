@@ -1,48 +1,53 @@
+# Plan: PDF Upload & Text Extraction for Ingestion
 
-# Veridex → Evidence-First RAG Upgrade
+You picked option 1 — the biggest gap is that users currently have to paste raw text into the upload form. We'll let them upload a PDF instead and extract the text automatically before chunking and embedding.
 
-## Reality check
-The current DB has **no `document_chunks` table and no pgvector extension**. The summary said otherwise but inspection shows neither exists. Everything below is built from scratch.
+## Goal
 
-## What I'll build
+On the `/upload` page, a user can drop a PDF file. The app extracts the text server-side, then runs it through the existing ingestion pipeline (chunk → embed → store in `document_chunks`). Pasted text remains supported as a fallback.
 
-### 1. Database (migration)
-- Enable `vector` extension
-- Add `source_type` enum + column to `documents` and `regulations` (gov_gazette, ministry_regulation, regulator_guidance, trade_agreement, policy_document, unofficial_source)
-- New `document_chunks`: `id, document_id, regulation_id, chunk_index, content, page_number, section, embedding vector(1536), tokens, created_at`
-- IVFFlat index on embedding (cosine)
-- RLS: read if the parent document is readable (mirror documents policy); admins manage
-- New `rag_logs`: query, latency_ms, retrieval_count, ai_latency_ms, confidence, user_id — admin-readable
-- New `documents.content_text` column to hold extracted body text (paste-on-upload for now; OCR future)
+## Scope
 
-### 2. Server functions (`src/lib/`)
-- `embeddings.server.ts` — calls Lovable AI Gateway `/v1/embeddings` with `openai/text-embedding-3-small` (1536d)
-- `ingestion.functions.ts` — `processDocument({ documentId })`: chunk content_text (~800 chars, 100 overlap), embed batch, upsert chunks, mark `documents.status = ready`
-- `rag-search.functions.ts` —
-  - `semanticSearch({ query, filters })` → top-k chunks with metadata + scores via `<=>` cosine
-  - `ragAnswer({ query, filters })` → retrieve → call `google/gemini-3-flash-preview` with strict evidence-only system prompt → return `{ answer, citations, confidence_score, retrieved_chunks, jurisdictions, source_authority }`; refuses with "Insufficient verified evidence found in the current document set." when top score < threshold or <2 chunks
-  - confidence = weighted(avg similarity, chunk count, authority)
-- `admin-debug.functions.ts` — chunk counts, recent rag_logs, failed documents
+In scope:
+- PDF file upload (single file, up to ~10 MB)
+- Server-side text extraction from the PDF
+- Reuse existing `ingestDocument` flow for chunking/embedding/storage
+- Show extraction progress + page count + preview of extracted text before commit
+- Graceful error if the PDF is image-only / has no extractable text
 
-### 3. UI
-- Rewrite `src/routes/_authenticated/search.tsx`:
-  - Natural-language query box + suggested prompts chips
-  - Filters: jurisdiction, source_type, authority
-  - AI Answer card (top): answer text, confidence badge, jurisdictions, low-confidence warning
-  - Collapsible **"Why this answer?"** panel with retrieved chunks
-  - Citation cards list (regulation/doc title, section, jurisdiction, authority badge, excerpt, score, verified)
-  - Recent searches sidebar (existing `searches` table)
-- New `src/components/citation-card.tsx`, `authority-badge.tsx`, `confidence-indicator.tsx`
-- Update `upload.tsx`: add "Document content / paste text" textarea + auto-trigger `processDocument` after insert; show ingestion status
-- Update `admin.tsx`: add Debug section (chunk totals, latency, failed docs, recent retrievals)
-- `regulations.tsx`: display authority badge
+Out of scope (future):
+- OCR for scanned/image PDFs (needs Tesseract or a vision model — heavier lift)
+- DOCX, HTML, EPUB ingestion
+- Multi-file batch upload
+- URL ingestion ("paste a regulator link")
 
-### 4. Wiring
-- `src/start.ts` already has `attachSupabaseAuth`
-- All server fns use `requireSupabaseAuth`; embeddings/AI calls inside handler read `process.env.LOVABLE_API_KEY`
+## Technical approach
 
-### Out of scope (called out to user)
-- PDF/OCR text extraction (workers runtime can't run sharp/pdf-parse reliably) — content must be pasted for now
-- Real re-ranker; we use cosine similarity only
+**PDF parsing library:** `unpdf` — pure JS, works in Cloudflare Workers (no Node-only deps, no native binaries). The popular `pdf-parse` package depends on Node fs and breaks in our Worker runtime, so we avoid it.
 
-Proceeding directly — no clarifying questions needed.
+**Flow:**
+1. `upload.tsx` — add a file input + drag/drop zone alongside the existing text fields. On file select, read the PDF as `ArrayBuffer` and send to a new server fn `extractPdfText`.
+2. `src/lib/pdf-extract.functions.ts` — new server fn:
+   - Input: `{ fileBase64: string, filename: string }`
+   - Calls `unpdf.extractText()` → returns `{ text, pageCount }`
+   - Throws a typed error if extracted text is empty (likely scanned)
+3. Client receives extracted text, shows a preview ("Extracted 12 pages, 8,432 characters") and pre-fills the existing `content_text` field. User confirms title/source and clicks Ingest.
+4. Existing `ingestDocument` server fn runs unchanged — chunking + embedding + DB insert.
+
+**Auth:** both server fns use `requireSupabaseAuth` (matches existing `ingestDocument`).
+
+**Files:**
+- new: `src/lib/pdf-extract.functions.ts`
+- new: `src/components/pdf-dropzone.tsx` (drag/drop UI + file picker)
+- edit: `src/routes/_authenticated/upload.tsx` (mount dropzone, wire extraction → preview → existing ingest button)
+- install: `unpdf`
+
+**Failure modes handled:**
+- File > 10 MB → reject client-side with clear message
+- Non-PDF mime → reject client-side
+- Empty extracted text → server returns `{ error: "scanned_pdf" }`, UI tells user to paste text manually or wait for OCR support
+- Extraction throws → surface the error message, keep the paste fallback usable
+
+## What this unblocks
+
+After this ships, the demo flow becomes "drag in a regulation PDF → search it" instead of "open the PDF, select all, copy, paste, ingest." That's the difference between a toy and something you'd show a compliance lead.
