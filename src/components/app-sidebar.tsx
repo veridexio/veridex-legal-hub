@@ -1,6 +1,6 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
-  LayoutDashboard, Upload, Library, Search, Bookmark, Shield, UserCog, LogOut, Scale,
+  LayoutDashboard, Upload, Library, Search, Bookmark, Shield, UserCog, LogOut,
 } from "lucide-react";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
