@@ -1,6 +1,6 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import {
-  LayoutDashboard, Upload, Library, Search, Bookmark, Shield, UserCog, LogOut, Scale,
+  LayoutDashboard, Upload, Library, Search, Bookmark, Shield, UserCog, LogOut,
 } from "lucide-react";
 import {
   Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel,
@@ -31,14 +31,14 @@ export function AppSidebar() {
     <Sidebar collapsible="icon">
       <SidebarHeader className="border-b border-sidebar-border px-4 py-5">
         <Link to="/dashboard" className="flex items-center gap-2">
-          <div className="flex h-8 w-8 items-center justify-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground">
-            <Scale className="h-4 w-4" />
+          <div className="flex h-9 w-9 items-center justify-center rounded-sm bg-accent text-accent-foreground font-serif text-base">
+            V
           </div>
           {!collapsed && (
             <div>
-              <p className="font-serif text-lg leading-none text-sidebar-primary">Veridex</p>
-              <p className="text-[10px] uppercase tracking-[0.18em] text-sidebar-foreground/60 mt-1">
-                Trade Intelligence
+              <p className="font-serif text-lg leading-none text-sidebar-primary tracking-tight">Veridex</p>
+              <p className="font-mono text-[9px] uppercase tracking-[0.22em] text-sidebar-foreground/55 mt-1.5">
+                Regulatory Intelligence
               </p>
             </div>
           )}
