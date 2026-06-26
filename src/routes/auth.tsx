@@ -38,7 +38,7 @@ function AuthPage() {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session) navigate({ to: search.redirect ?? "/dashboard" });
+      if (data.session) navigate({ to: search.redirect ?? "/chat" });
     });
   }, [navigate, search.redirect]);
 
@@ -58,7 +58,7 @@ function AuthPage() {
         const { error } = await supabase.auth.signUp({
           email, password,
           options: {
-            emailRedirectTo: `${window.location.origin}/dashboard`,
+            emailRedirectTo: `${window.location.origin}/chat`,
             data: { full_name: fullName },
           },
         });
@@ -68,7 +68,7 @@ function AuthPage() {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
         toast.success("Welcome back.");
-        navigate({ to: search.redirect ?? "/dashboard" });
+        navigate({ to: search.redirect ?? "/chat" });
       }
     } catch (err: any) {
       toast.error(err.message ?? "Authentication failed");
